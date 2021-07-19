@@ -6,6 +6,7 @@ use dynasmrt::{
     AssemblyOffset, DynasmApi, ExecutableBuffer,
 };
 use std::collections::{BTreeMap, HashMap};
+use term::color::WHITE;
 
 /// Jitting pcode translator. Translate pcode by jitting it into x86 asm.
 #[derive(Debug)]
@@ -100,6 +101,765 @@ impl PcodeTranslator for X64JitPcodeTranslator {
 
         Ok(())
     }
+    fn copy(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax // rax is the accumulation value
+        );
+
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            let out_addr = mem.translate(out.addr())?;
+            dynasm!(ops
+                    ; add rax, value as _
+                    ; mov QWORD [out_addr as _], rax
+                );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            let size = inputs[0].size();
+            let out_addr = mem.translate(out.addr())?;
+            match size {
+                1 => {
+                    dynasm!(ops
+                    ; mov al, BYTE [input_addr as _]
+                    ; mov BYTE [out_addr as _], al
+                )
+                }
+                2 => {
+                    dynasm!(ops
+                    ; mov ax, WORD [input_addr as _]
+                    ; mov WORD [out_addr as _], ax
+                )
+                }
+                4 => {
+                    dynasm!(ops
+                    ; mov eax, DWORD [input_addr as _]
+                    ; mov DWORD [out_addr as _], eax
+                )
+                }
+                8 => {
+                    dynasm!(ops
+                    ; mov rax, QWORD [input_addr as _]
+                    ; mov QWORD [out_addr as _], rax
+                )
+                }
+                _ => unreachable!(),
+            }
+        }
+        Ok(())
+    }
+    fn load(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        let input_addr = mem.translate(inputs[0].addr())?;
+        let out_addr = mem.translate(out.addr())?;
+        dynasm!(ops
+            ; mov rax, QWORD [input_addr as _]
+            ; mov rax, QWORD [rax]
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn store(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        let value = inputs[0].addr().offset();
+        let out_addr = mem.translate(out.addr())?;
+        dynasm!(ops
+            ; mov rax, value as _
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn branch(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        let input_addr = mem.translate(inputs[0].addr())?;
+        todo!();// the way to finish jz
+
+    }
+    fn cbranch(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        todo!();
+    }
+    fn branchInd(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        todo!();
+    }
+
+    fn intXor(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov rax, QWORD [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; xor rax, rbx
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn intAnd(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov rax, QWORD [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; and rax, rbx
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn intOr(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov rax, QWORD [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; or rax, rbx
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn intLeft(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rcx, rcx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov rax, QWORD [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov cl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov cl, BYTE [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; shl rax, cl
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn intRight(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rcx, rcx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov rax, QWORD [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov cl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov cl, BYTE [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; shr rax, cl
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn intSright(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rcx, rcx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov rax, QWORD [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov cl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov cl, BYTE [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; sar rax, cl
+            ; mov QWORD [out_addr as _], rax
+        );
+        Ok(())
+    }
+    fn intMult(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov rax, QWORD [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+
+        dynasm!(ops
+            ; mul rbx
+            ; mov QWORD [out_addr as _], rdx
+            ; mov QWORD [out_addr_low as _], rax
+        );
+        Ok(())
+    }
+    fn intDiv(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rdx, rdx
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            let value_high = value & 0x00000000;
+            let value_low = value & 0xFFFFFFFF;
+            dynasm!(ops
+                ; mov rdx, value_high as _
+                ; mov rax, value_low as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            let input_addr_low = input_addr + 8;
+            dynasm!(ops
+                ; mov rdx, QWORD [input_addr as _]
+                ; mov rax, QWORD [input_addr_low as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+
+        dynasm!(ops
+            ; div rbx
+            ; mov QWORD [out_addr as _], rax
+            ; mov QWORD [out_addr_low as _], rdx
+        );
+        Ok(())
+    }
+    fn intRem(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rdx, rdx
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            let value_high = value & 0x00000000;
+            let value_low = value & 0xFFFFFFFF;
+            dynasm!(ops
+                ; mov rdx, value_high as _
+                ; mov rax, value_low as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            let input_addr_low = input_addr + 8;
+            dynasm!(ops
+                ; mov rdx, QWORD [input_addr as _]
+                ; mov rax, QWORD [input_addr_low as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; div rbx
+            ; mov QWORD [out_addr as _], rdx
+        );
+        Ok(())
+    }
+    fn intSdiv(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rdx, rdx
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            let value_high = value & 0x00000000;
+            let value_low = value & 0xFFFFFFFF;
+            dynasm!(ops
+                ; mov rdx, value_high as _
+                ; mov rax, value_low as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            let input_addr_low = input_addr + 8;
+            dynasm!(ops
+                ; mov rdx, QWORD [input_addr as _]
+                ; mov rax, QWORD [input_addr_low as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; idiv rbx
+            ; mov QWORD [out_addr as _], rax
+            ; mov QWORD [out_addr_low as _], rdx
+        );
+        Ok(())
+    }
+    fn intSrem(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rdx, rdx
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            let value_high = value & 0x00000000;
+            let value_low = value & 0xFFFFFFFF;
+            dynasm!(ops
+                ; mov rdx, value_high as _
+                ; mov rax, value_low as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            let input_addr_low = input_addr + 8;
+            dynasm!(ops
+                ; mov rdx, QWORD [input_addr as _]
+                ; mov rax, QWORD [input_addr_low as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov rbx, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov rbx, QWORD [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; idiv rbx
+            ; mov QWORD [out_addr as _], rdx
+        );
+        Ok(())
+    }
+    fn boolNegate(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+        );
+        let out_addr = mem.translate(out.addr())?;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov rax, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov al, BYTE [input_addr as _]
+            );
+        }
+        dynasm!(ops
+            ; not al
+            ; mov BYTE [out_addr as _], al
+        );
+        Ok(())
+    }
+    fn boolXor(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov cl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov cl, BYTE [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov bl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov bl, BYTE [input_addr as _]
+            );
+        }
+
+        dynasm!(ops
+            ; xor al, bl
+            ; mov BYTE [out_addr_low as _], al
+        );
+        Ok(())
+    }
+    fn boolAnd(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov cl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov cl, BYTE [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov bl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov bl, BYTE [input_addr as _]
+            );
+        }
+
+        dynasm!(ops
+            ; and al, bl
+            ; mov BYTE [out_addr_low as _], al
+        );
+        Ok(())
+    }
+    fn boolOr(
+        &mut self,
+        ops: &mut dynasmrt::Assembler<Self::Reloc>,
+        mem: &MemMappedMemory,
+        inputs: &[&dyn crate::Varnode],
+        out: &dyn crate::Varnode,
+    ) -> Result<()> {
+        dynasm!(ops
+            ; xor rax, rax
+            ; xor rbx, rbx
+        );
+        let out_addr = mem.translate(out.addr())?;
+        let out_addr_low = out_addr + 8;
+        if &inputs[0].addr().space() == "const" {
+            let value = inputs[0].addr().offset();
+            dynasm!(ops
+                ; mov cl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[0].addr())?;
+            dynasm!(ops
+                ; mov cl, BYTE [input_addr as _]
+            );
+        }
+        if &inputs[1].addr().space() == "const" {
+            let value = inputs[1].addr().offset();
+            dynasm!(ops
+                ; mov bl, value as _
+            );
+        } else {
+            let input_addr = mem.translate(inputs[1].addr())?;
+            dynasm!(ops
+                ; mov bl, BYTE [input_addr as _]
+            );
+        }
+
+        dynasm!(ops
+            ; or al, bl
+            ; mov BYTE [out_addr_low as _], al
+        );
+        Ok(())
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 /// Pcode cache only block translator that does not translate anything not in the cache.

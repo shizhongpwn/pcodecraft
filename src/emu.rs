@@ -23,6 +23,162 @@ pub trait PcodeTranslator: std::fmt::Debug {
         out: &dyn Varnode,
     ) -> Result<()>;
     // todo: other operations..
+    fn copy(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn load(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn store(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn branch(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn cbranch(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn branchInd(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+
+
+    fn intXor(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intAnd(
+    &mut self,
+    ops: &mut Assembler<Self::Reloc>,
+    mem: &Self::Mem,
+    inputs: &[&dyn Varnode],
+    out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intOr(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intLeft(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intRight(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intSright(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intMult(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intDiv(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intRem(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intSdiv(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn intSrem(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn boolNegate(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn boolXor(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn boolAnd(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn boolOr(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
+    fn floatEqual(
+        &mut self,
+        ops: &mut Assembler<Self::Reloc>,
+        mem: &Self::Mem,
+        inputs: &[&dyn Varnode],
+        out: &dyn Varnode,
+    ) -> Result<()>;
 
     fn translate_pcode(
         &mut self,
@@ -45,6 +201,207 @@ pub trait PcodeTranslator: std::fmt::Debug {
                 let output = output.unwrap();
                 self.int_add(ops, mem, &inputs, output)?;
             }
+            Copy => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+
+                if output.is_none() {
+                    return Ok(());
+                }
+
+                let output = output.unwrap();
+                self.copy(ops, mem, &inputs, output)?;
+            }
+            Load => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+
+                if output.is_none() {
+                    return Ok(());
+                }
+
+                let output = output.unwrap();
+                self.load(ops, mem, &inputs, output)?;
+
+            }
+            Store => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return Ok(());
+                }
+                let output = output.unwrap();
+                self.store(ops, mem, &inputs, output);
+            }
+            Branch => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    let output = output.unwrap();
+                    self.branch(ops, mem, &inputs, output);
+                }
+                return Ok(());
+            }
+            Cbranch => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return Ok(());
+                }
+                let output = output.unwrap();
+                self.cbranch(ops, mem, &inputs, output);
+            }
+            BranchInd => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    let output = output.unwrap();
+                    self.branchInd(ops, mem, &inputs, output);
+                }
+                return Ok(());
+            }
+            IntXor => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return Ok(());
+                }
+                let output = output.unwrap();
+                self.intXor(ops, mem, &inputs, output);
+            }
+            IntAdd => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intAnd(ops, mem, &inputs, output);
+            }
+            IntOr => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intOr(ops, mem, &inputs, output);
+            }
+            IntLeft => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intLeft(ops, mem, &inputs, output);
+            }
+            IntRight => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intRight(ops, mem, &inputs, output);
+            }
+            IntSRight => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intSright(ops, mem, &inputs, output);
+            }
+            IntMult => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intMult(ops, mem, &inputs, output);
+            }
+            IntDiv => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intDiv(ops, mem, &inputs, output);
+            }
+            IntRem => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intRem(ops, mem, &inputs, output);
+            }
+            IntSDiv => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intSdiv(ops, mem, &inputs, output);
+            }
+            IntSRem => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.intSrem(ops, mem, &inputs, output);
+            }
+            BoolNegate => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.boolNegate(ops, mem, &inputs, output);
+            }
+            BoolXor => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.boolXor(ops, mem, &inputs, output);
+            }
+            BoolAnd => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.boolAnd(ops, mem, &inputs, output);
+            }
+            BoolOr => {
+                let inputs = pcode.inputs();
+                let output = pcode.output();
+                if output.is_none() {
+                    return  Ok(());
+                }
+                let output = output.unwrap();
+                self.boolOr(ops, mem, &inputs, output);
+            }
+
+
+
+
+
+
+
             _ => todo!("other opcodes"),
         }
         todo!()
